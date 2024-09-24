@@ -27,26 +27,64 @@ router.post("/signup", async (req, res) => {
         const hash = SHA256(password + salt).toString(encBase64);
 
         const newUser = new User({
-          firstName: firstName,
+          firstname: firstName,
           name: name,
           birthDate: birthDate,
           email: email,
           newsletter: newsletter,
           token: token,
           hash: hash,
+          salt: salt,
         });
         //console.log(newUser);
         await newUser.save();
         res.status(201).json({
           id: newUser._id,
+          firstname: newUser.firstname,
+          name: newUser.name,
           email: newUser.email,
-          token: token,
+          token: newUser.token,
         });
+        console.log(newUser);
       } else {
         res.status(409).json({ message: "email already registered" });
       }
     } else {
       res.status(400).json({ message: "missing parameters" });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ROUTE LOGIN
+
+router.post("/login", async (req, res) => {
+  try {
+    if (req.body.email && req.body.password) {
+      // on cherche si l'email de l'utilisateur est bien en BDD
+      const user = await User.findOne({ email: req.body.email });
+
+      // on crée un hash à partir du password envoyé par le user + le salt du user enregistré en BB
+      const userPasswordToCheck = SHA256(
+        req.body.password + user.salt
+      ).toString(encBase64);
+
+      //console.log(userPasswordToCheck);
+
+      if (userPasswordToCheck === user.hash) {
+        res.status(200).json({
+          message: "Well connected !",
+          _id: user._id,
+          token: user.token,
+          firstname: user.firstname,
+          name: user.name,
+        });
+      } else {
+        return res.status(400).json({ message: "email or password incorrect" });
+      }
+    } else {
+      return res.status(400).json({ message: "email or password missing" });
     }
   } catch (error) {
     res.status(500).json({ error: error.message });
